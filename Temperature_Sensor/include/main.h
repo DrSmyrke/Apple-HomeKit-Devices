@@ -12,7 +12,7 @@
 #endif
 #define SLEEP_SECONDS						900
 #define FIRMWARE_VERSION					"1.0."
-#define FIRMWARE_VERSION_BUFF_SIZE			14
+#define NAME_BUFF_SIZE						14
 
 //----------- INCLUDES --------------------------------------------------------------------
 // #include <esp_functions.h>
@@ -20,7 +20,8 @@
 //----------- STRUCTIRES -------------------------------------------------------------------
 
 //----------- VARIABLES --------------------------------------------------------------------
-extern char firmvare_version[ FIRMWARE_VERSION_BUFF_SIZE ];
+extern char firmvare_version[ NAME_BUFF_SIZE ];
+extern char model_name[ NAME_BUFF_SIZE ];
 
 //----------- INCLUDES ---------------------------------------------------------------------
 

@@ -12,7 +12,8 @@
 
 
 //----------- VARIABLES --------------------------------------------------------------------
-char firmvare_version[ FIRMWARE_VERSION_BUFF_SIZE ];
+char firmvare_version[ NAME_BUFF_SIZE ];
+char model_name[ NAME_BUFF_SIZE ];
 #ifdef BMP180_SENSOR
 	BMP180 bmp180( BMP180_ULTRAHIGHRES );
 #endif
@@ -36,6 +37,13 @@ void setup()
 
 	strcpy( firmvare_version, FIRMWARE_VERSION );
 	strcat( firmvare_version, FIRMWARE_REVISION );
+
+	strcpy( model_name, MODEL_NAME );
+#ifdef BMP180_SENSOR
+	strcat( model_name, "/BMP180" );
+#else if DS18B20_SENSOR
+	strcat( model_name, "/DS18B20" );
+#endif
 
 	esp::init();
 
