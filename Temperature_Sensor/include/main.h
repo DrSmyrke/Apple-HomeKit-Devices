@@ -16,7 +16,7 @@
 #elif defined(ARDUINO_ARCH_ESP32)
 	#define MODEL_NAME						"ESP32/"SENSOR_TYPE
 #endif
-#define SLEEP_SECONDS						900
+#define SLEEP_SECONDS						90000
 #define FIRMWARE_VERSION					"1.0."FIRMWARE_REVISION
 
 //----------- INCLUDES --------------------------------------------------------------------

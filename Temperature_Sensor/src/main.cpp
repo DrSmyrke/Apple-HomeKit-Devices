@@ -22,7 +22,7 @@
 	DallasTemperature sensors( &oneWire );
 #endif
 Timer timer0( 0, 1000 );
-
+float temperature = 0.0;
 #ifdef SLEEP_MODE
 	uint8_t sec_count = 0;
 #endif
@@ -34,6 +34,8 @@ extern "C" homekit_characteristic_t cha_current_temperature;
 //----------- FUNCTIONS--------------------------------------------------------------------
 void setup()
 {
+	temperature				= 0.0;
+
 	Serial.begin( 115200 );
 #ifdef BMP180_SENSOR
 	bmp180.begin();
@@ -59,15 +61,18 @@ void loop()
 	if( timer0.isInterrupt() ){
 		timer0.confirmInerrupt();
 
-		if( arduino_homekit_connected_clients_count() ){
 #ifdef BMP180_SENSOR
-			my_homekit_report( bmp180.getTemperature() );
+		temperature = bmp180.getTemperature();
 #elif DS18B20_SENSOR
-			sensors.requestTemperatures();
-			my_homekit_report( sensors.getTempCByIndex( 0 ) );
+		sensors.requestTemperatures();
+		temperature = sensors.getTempCByIndex( 0 );
 #endif
+		my_homekit_report( temperature );
+		
+		if( arduino_homekit_connected_clients_count() ){
+			
 #ifdef SLEEP_MODE
-			if( sec_count++ >= 10 ){
+			if( sec_count++ >= 3 ){
 				system_deep_sleep_instant( SLEEP_SECONDS * 1000 );
 				sec_count = 0;
 			}
