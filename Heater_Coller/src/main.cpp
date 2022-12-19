@@ -48,7 +48,7 @@ void setup()
 	Serial.begin( 115200 );
 #else
 	pinMode( LED_BUILTIN, OUTPUT );
-	digitalWrite( LED_BUILTIN, LOW );
+	digitalWrite( LED_BUILTIN, HIGH );
 #endif
 
 	activeFlag							= 2;
@@ -62,10 +62,6 @@ void setup()
 		dnsServer.setErrorReplyCode( DNSReplyCode::NoError );
 		dnsServer.addRecord( "*", WiFi.softAPIP() );
 		dnsServer.start( DNS_PORT );
-
-		esp::pageBuff = pageBuff;
-		esp::addWebServerPages( &webServer, true, true, true );
-		webServer.begin();
 	}else{
 		// homeKit.fillInfoCharacteristics( DEVICE_NAME, "0123456", MODEL_NAME, FIRMWARE_VERSION );
 
@@ -105,13 +101,33 @@ void setup()
 
 		// active_characteristic.setter				= setState;
 
-		arduino_homekit_setup( &config );
+		
 
 		// uint32_t id = homeKit.newAccessorie( homekit_accessory_category_switch );
 
 		// homeKit.setPassword( "880-05-553" );
 		// arduino_homekit_setup( homeKit.getConfig() );
+#ifdef __DEV
+		// int reason = ESP.getResetInfoPtr()->reason;
+
+		// ESP_DEBUG( "RESET [%d]\n", reason );
+
+		// if( reason == REASON_EXT_SYS_RST ){
+		// 	homekit_storage_reset();
+		// }
+#endif
+
+		arduino_homekit_setup( &config );
 	}
+
+	esp::pageBuff = pageBuff;
+	esp::addWebServerPages( &webServer, true, true, true );
+	webServer.on( "/storageReset", [ webServer ](void){
+		homekit_storage_reset();
+		ESP.reset();
+		webServer.send ( 200, "text/html", "OK" );
+	} );
+	webServer.begin();
 
 	ESP_DEBUG( "INIT OK\n" );
 }
@@ -154,10 +170,12 @@ void loop()
 
 	if( esp::flags.ap_mode ){
 		dnsServer.processNextRequest();
-		webServer.handleClient();
+		
 	}else{
 		arduino_homekit_loop();
 	}
+
+	webServer.handleClient();
 }
 
 //-----------------------------------------------------------------------------------------
@@ -165,7 +183,7 @@ void loop()
 void condei(void)
 {
 #ifndef __DEV
-	digitalWrite( LED_BUILTIN, ( active_characteristic.value.uint8_value > 0 ) ? HIGH : LOW );
+	digitalWrite( LED_BUILTIN, ( active_characteristic.value.uint8_value > 0 ) ? LOW : HIGH );
 #endif
 	uint8_t power = ( active_characteristic.value.uint8_value > 0 ) ? POWER_ON : POWER_OFF;
 	uint8_t acmode = MODE_COOL;
@@ -232,9 +250,10 @@ void setTargetState(homekit_value_t value)
 
 	switch( targetState_characteristic.value.uint8_value ){
 		case 0:
-			//OFF
-			active_characteristic.value = HOMEKIT_UINT8( 0 );
-			currentState_characteristic.value  = HOMEKIT_UINT8( 1 );
+			//AUTO
+			active_characteristic.value = HOMEKIT_UINT8( 1 );
+			currentTemp_characteristic.value  = HOMEKIT_FLOAT( 14.0 );
+			currentState_characteristic.value  = HOMEKIT_UINT8( 2 );
 		break;
 		case 1:
 			//HEAT
@@ -250,11 +269,10 @@ void setTargetState(homekit_value_t value)
 			targetCoolingTemp_characteristic.value  = HOMEKIT_FLOAT( 25.0 );
 			currentState_characteristic.value  = HOMEKIT_UINT8( 3 );
 		break;
-		case 3:
-			//AUTO
-			active_characteristic.value = HOMEKIT_UINT8( 1 );
-			currentTemp_characteristic.value  = HOMEKIT_FLOAT( 14.0 );
-			currentState_characteristic.value  = HOMEKIT_UINT8( 2 );
+		default:
+			//OFF
+			active_characteristic.value = HOMEKIT_UINT8( 0 );
+			currentState_characteristic.value  = HOMEKIT_UINT8( 1 );
 		break;
 	}
 
@@ -269,15 +287,15 @@ void setState(homekit_value_t value)
 		return;
 	}
 
-	// if( active_characteristic.value.uint8_value != value.uint8_value ){
-	// 	if( value.uint8_value && targetState_characteristic.value.uint8_value == 0 ) setTargetState( HOMEKIT_UINT8( 2 ) );
-	// 	activeFlag = 2;
-	// }
+	if( active_characteristic.value.uint8_value != value.uint8_value ){
+		if( value.uint8_value ) setTargetState( targetState_characteristic.value );
+		activeFlag = RETRY_COUNT;
+	}
 
 	active_characteristic.value = value;
-	ESP_DEBUG( "Switch: %s\n", value.uint8_value ? "ON" : "OFF" );
+	ESP_DEBUG( "Switch: %s [%d]\n", value.uint8_value ? "ON" : "OFF", value.uint8_value );
 
-	setTargetState( HOMEKIT_UINT8( ( value.uint8_value ) ? 2 : 0 ) );
+	// setTargetState( HOMEKIT_UINT8( ( value.uint8_value ) ? 2 : 0 ) );
 }
 
 //-----------------------------------------------------------------------------------------

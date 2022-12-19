@@ -31,6 +31,16 @@ float temperature = 0.0;
 extern "C" homekit_server_config_t config;
 extern "C" homekit_characteristic_t cha_current_temperature;
 
+
+
+#if defined(ARDUINO_ARCH_ESP8266)
+	ESP8266WebServer webServer;
+#elif defined(ARDUINO_ARCH_ESP32)
+	WebServer webServer;
+#endif
+
+char pageBuff[ WEB_PAGE_BUFF_SIZE ];
+
 //----------- FUNCTIONS--------------------------------------------------------------------
 void setup()
 {
@@ -47,15 +57,38 @@ void setup()
 
 	esp::wifi_STA_init( DEVICE_NAME );
 
+	config.password								= "123-45-678";
+
 	arduino_homekit_setup( &config );
 #ifdef SLEEP_MODE
 	system_deep_sleep_set_option( 1 );
 #endif
+
+// #ifdef __DEV
+// 		int reason = ESP.getResetInfoPtr()->reason;
+
+// 		ESP_DEBUG( "RESET [%d]\n", reason );
+
+// 		if( reason == REASON_EXT_SYS_RST ){
+// 			homekit_storage_reset();
+// 		}
+// #endif
+
+	esp::pageBuff = pageBuff;
+	esp::addWebServerPages( &webServer, true, true, true );
+	webServer.on( "/storageReset", [ webServer ](void){
+		homekit_storage_reset();
+		ESP.reset();
+		webServer.send ( 200, "text/html", "OK" );
+	} );
+	webServer.begin();
 }
 
 //-----------------------------------------------------------------------------------------
 void loop()
 {
+	static uint8_t clients = 0;
+
 	arduino_homekit_loop();
 
 	if( timer0.isInterrupt() ){
@@ -79,8 +112,14 @@ void loop()
 #endif
 		}
 
-		ESP_DEBUG("Free heap: %d, HomeKit clients: %d\n", ESP.getFreeHeap(), arduino_homekit_connected_clients_count());
+		uint8_t clientsNew = arduino_homekit_connected_clients_count();
+		if( clientsNew != clients ){
+			ESP_DEBUG( "Free heap: %d, HomeKit clients: %d\n", ESP.getFreeHeap(), clientsNew) ;
+			clients = clientsNew;
+		}
 	}
+
+	webServer.handleClient();
 }
 
 //-----------------------------------------------------------------------------------------

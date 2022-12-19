@@ -14,9 +14,9 @@ homekit_characteristic_t currentTemp_characteristic = HOMEKIT_CHARACTERISTIC_(CU
 homekit_characteristic_t currentState_characteristic = HOMEKIT_CHARACTERISTIC_(CURRENT_HEATER_COOLER_STATE, 1,
 	.getter = getCurrentState,
 );
-homekit_characteristic_t targetState_characteristic = HOMEKIT_CHARACTERISTIC_(TARGET_HEATER_COOLER_STATE, 0,
+homekit_characteristic_t targetState_characteristic = HOMEKIT_CHARACTERISTIC_(TARGET_HEATER_COOLER_STATE, 2,
 	.getter = getTargetState,
-	// .setter = setTargetState,
+	.setter = setTargetState,
 );
 homekit_characteristic_t targetCoolingTemp_characteristic = HOMEKIT_CHARACTERISTIC_(COOLING_THRESHOLD_TEMPERATURE, 25.0,
 	.setter = setTargetCoolingTemp,
