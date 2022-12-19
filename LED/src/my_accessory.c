@@ -3,73 +3,51 @@
 #include <LIBS/my_defines.h>
 #include "main.h"
 
-// Called to identify this accessory. See HAP section 6.7.6 Identify Routine
-// Generally this is called when paired successfully or click the "Identify Accessory" button in Home APP.
+
+
 void my_accessory_identify(homekit_value_t _value)
 {
 	printf("accessory identify\n");
 }
 
-bool led_power = false;
-int led_bri = 100; //[0, 100]
-
-homekit_value_t led_on_get() {
-	return HOMEKIT_BOOL(led_power);
-}
-
-void led_on_set(homekit_value_t value) {
-	if (value.format != homekit_format_bool) {
-		printf("Invalid on-value format: %d\n", value.format);
-		return;
-	}
-	led_power = value.bool_value;
-	if (led_power) {
-		if (led_bri < 1) {
-			led_bri = 100;
-		}
-	}
-	// led_update();
-}
-
-homekit_value_t light_bri_get() {
-	return HOMEKIT_INT(led_bri);
-}
-
-void led_bri_set(homekit_value_t value) {
-	if (value.format != homekit_format_int) {
-		return;
-	}
-	led_bri = value.int_value;
-	// led_update();
-}
-void cha_switch_on_setter(const homekit_value_t value)
-{
-	bool on = value.bool_value;
-	// cha_switch_on.value.bool_value = on; //sync the value
-	// ESP_DEBUG( "Switch: %s", on ? "ON" : "OFF" );
-	digitalWrite( SWITCH_PIN, on ? 0 : 1 );
-}
 
 
+void lamp_on_setter(const homekit_value_t value);
+homekit_value_t lamp_on_getter(void);
 
-homekit_characteristic_t occupancy_detected = HOMEKIT_CHARACTERISTIC_(OCCUPANCY_DETECTED, 0);
-homekit_characteristic_t led_on = HOMEKIT_CHARACTERISTIC_(ON, false,
+homekit_characteristic_t lamp_on = HOMEKIT_CHARACTERISTIC_(ON, false,
 		//.callback=HOMEKIT_CHARACTERISTIC_CALLBACK(switch_on_callback),
-		.getter=led_on_get,
-		.setter=led_on_set
+		.getter=lamp_on_getter,
+		.setter=lamp_on_setter
 );
 
-void occupancy_toggle() {
-	const uint8_t state = occupancy_detected.value.uint8_value;
-	occupancy_detected.value = HOMEKIT_UINT8((!state) ? 1 : 0);
-	homekit_characteristic_notify(&occupancy_detected, occupancy_detected.value);
+//-----------------------------------------------------------------------------------------
+void lamp_on_setter(const homekit_value_t value)
+{
+	if( value.format != homekit_format_bool ) return;
+	setLamp( value.bool_value );
+	lamp_on.value = value;
 }
 
-void led_toggle() {
-	led_on.value.bool_value = !led_on.value.bool_value;
-	led_on.setter(led_on.value);
-	homekit_characteristic_notify(&led_on, led_on.value);
+//-----------------------------------------------------------------------------------------
+homekit_value_t lamp_on_getter(void)
+{
+	return lamp_on.value;
 }
+
+//-----------------------------------------------------------------------------------------
+void lamp_bright_setter(const homekit_value_t value)
+{
+	if( value.format != homekit_format_int ) return;
+	setBrightness( value.int_value );
+}
+
+//-----------------------------------------------------------------------------------------
+homekit_value_t lamp_bright_getter(void)
+{
+	return HOMEKIT_INT( getBrightness() );
+}
+
 
 homekit_accessory_t *accessories[] = {
 	HOMEKIT_ACCESSORY(.id=1, .category=homekit_accessory_category_lightbulb, .services=(homekit_service_t*[]) {
@@ -83,41 +61,12 @@ homekit_accessory_t *accessories[] = {
 			NULL
 		}),
 		HOMEKIT_SERVICE(LIGHTBULB, .primary=true, .characteristics=(homekit_characteristic_t*[]){
-			&led_on,
+			&lamp_on,
 			HOMEKIT_CHARACTERISTIC( NAME, DEVICE_NAME ),
-			HOMEKIT_CHARACTERISTIC( BRIGHTNESS, 100, .getter=light_bri_get, .setter=led_bri_set ),
+			HOMEKIT_CHARACTERISTIC( BRIGHTNESS, 100, .getter=lamp_bright_getter, .setter=lamp_bright_setter ),
 			// HOMEKIT_CHARACTERISTIC( HUE, 100, .getter=light_bri_get, .setter=led_bri_set ),
 			NULL
 		}),
-		// HOMEKIT_SERVICE(LIGHTBULB, .primary=true, .characteristics=(homekit_characteristic_t*[]){
-		// 	&led_on,
-		// 	HOMEKIT_CHARACTERISTIC( NAME, "Light 2" ),
-		// 	HOMEKIT_CHARACTERISTIC( BRIGHTNESS, 90, .getter=light_bri_get, .setter=led_bri_set ),
-		// 	// HOMEKIT_CHARACTERISTIC( HUE, 100, .getter=light_bri_get, .setter=led_bri_set ),
-		// 	NULL
-		// }),
-		// HOMEKIT_SERVICE(LIGHTBULB, .primary=true, .characteristics=(homekit_characteristic_t*[]){
-		// 	&led_on,
-		// 	HOMEKIT_CHARACTERISTIC( NAME, "Light 3" ),
-		// 	HOMEKIT_CHARACTERISTIC( BRIGHTNESS, 80, .getter=light_bri_get, .setter=led_bri_set ),
-		// 	HOMEKIT_CHARACTERISTIC( HUE, 100, .getter=light_bri_get, .setter=led_bri_set ),
-		// 	NULL
-		// }),
-		HOMEKIT_SERVICE(OCCUPANCY_SENSOR, .primary=true, .characteristics=(homekit_characteristic_t*[]){
-			HOMEKIT_CHARACTERISTIC( NAME, "Occupancy" ),
-			&occupancy_detected,
-			NULL
-		}),
-		HOMEKIT_SERVICE(SWITCH, .primary=true, .characteristics=(homekit_characteristic_t*[]){
-			HOMEKIT_CHARACTERISTIC( ON, false, .setter=cha_switch_on_setter ),
-			HOMEKIT_CHARACTERISTIC( NAME, "Switch" ),
-			NULL
-		}),
-		// HOMEKIT_SERVICE(SWITCH, .primary=true, .characteristics=(homekit_characteristic_t*[]){
-		// 	HOMEKIT_CHARACTERISTIC( ON, false, .setter=cha_switch_on_setter ),
-		// 	HOMEKIT_CHARACTERISTIC( NAME, "Switch 2" ),
-		// 	NULL
-		// }),
 		NULL
 	}),
 	NULL
