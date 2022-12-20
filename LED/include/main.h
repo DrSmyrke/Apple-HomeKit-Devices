@@ -12,6 +12,10 @@
 #define FIRMWARE_VERSION					"1.0."FIRMWARE_REVISION
 #define WEB_PAGE_BUFF_SIZE					2048
 #define LEDS_COUNT							17
+#define START_BRIGHT						15
+#define MAX_BRIGHT							100
+#define START_HUE							100
+#define START_SATURATION					50
 
 //----------- INCLUDES --------------------------------------------------------------------
 #include <homekit/types.h>
@@ -20,7 +24,7 @@
 
 //----------- VARIABLES --------------------------------------------------------------------
 extern char pageBuff[ WEB_PAGE_BUFF_SIZE ];
-extern uint8_t bright;
+
 
 //----------- INCLUDES ---------------------------------------------------------------------
 

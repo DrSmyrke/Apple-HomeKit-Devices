@@ -11,18 +11,24 @@
 
 //----------- VARIABLES --------------------------------------------------------------------
 Adafruit_NeoPixel pixels( LEDS_COUNT, D5, NEO_GRB + NEO_KHZ800 );
-uint8_t bright = 4;
+uint8_t fadeValue = 0;
+uint8_t fadeMode = 1;
 
-Timer timer0( 0, 1000 );
+Timer timer0( 0, 25 );
 DNS_Server dnsServer;
 // access your homekit characteristics defined in my_accessory.c
 extern "C" homekit_server_config_t config;
 extern "C" homekit_characteristic_t lamp_on;
+extern "C" uint8_t rgb[ 3 ];
+extern "C" uint16_t hue;
+extern "C" uint8_t saturation;
+extern "C" uint8_t bright;
 
+extern "C" void setRGB(const uint8_t r, const uint8_t g, const uint8_t b);
 extern "C" void setBrightness(const uint8_t value);
-extern "C" uint8_t getBrightness(void);
 extern "C" void setLamp(const uint8_t value);
 extern "C" void setLed(const uint8_t ledNum, uint8_t r, uint8_t g, uint8_t b);
+extern "C" void hsbToRgb(void);
 
 #if defined(ARDUINO_ARCH_ESP8266)
 	ESP8266WebServer webServer;
@@ -43,35 +49,38 @@ void setup()
 {
 	ESP.wdtEnable( 1000 );
 
-#ifdef __DEV
+// #ifdef __DEV
 	Serial.begin( 115200 );
-#endif
+// #endif
 
 	pixels.begin();
 	pixels.clear();
 	pixels.show();
-	pixels.setBrightness( bright );
-	delay( 1000 );
-	setLed( 0, 0xFF, 0, 0 ); pixels.show(); delay( 250 );
-	setLed( 1, 0xFF, 0x35, 0 ); pixels.show(); delay( 250 );
-	setLed( 2, 0xFF, 0xFF, 0 ); pixels.show(); delay( 250 );
-	setLed( 3, 0, 0x80, 0 ); pixels.show(); delay( 250 );
-	setLed( 4, 0, 0, 0xFF ); pixels.show(); delay( 250 );
-	setLed( 5, 0x4B, 0, 0x82 ); pixels.show(); delay( 250 );
-	setLed( 6, 0xEE, 0x82, 0xEE ); pixels.show(); delay( 250 );
-	setLed( 7, 0xFE, 0xFE, 0xFE ); pixels.show(); delay( 250 );
-	setLed( 8, 0xFF, 0, 0 ); pixels.show(); delay( 250 );
-	setLed( 9, 0xFF, 0x35, 0 ); pixels.show(); delay( 250 );
-	setLed( 10, 0xFF, 0xFF, 0 ); pixels.show(); delay( 250 );
-	setLed( 11, 0, 0x80, 0 ); pixels.show(); delay( 250 );
-	setLed( 12, 0, 0, 0xFF ); pixels.show(); delay( 250 );
-	setLed( 13, 0x4B, 0, 0x82 ); pixels.show(); delay( 250 );
-	setLed( 14, 0xEE, 0x82, 0xEE ); pixels.show(); delay( 250 );
-	setLed( 15, 0xFE, 0xFE, 0xFE ); pixels.show(); delay( 250 );
-	setLed( 16, 0xFF, 0, 0 ); pixels.show(); delay( 250 );
+	setLed( 0, 0xFF, 0, 0 ); pixels.show(); delay( 100 );
+	setLed( 1, 0xFF, 0x35, 0 ); pixels.show(); delay( 100 );
+	setLed( 2, 0xFF, 0xFF, 0 ); pixels.show(); delay( 100 );
+	setLed( 3, 0, 0x80, 0 ); pixels.show(); delay( 100 );
+	setLed( 4, 0, 0, 0xFF ); pixels.show(); delay( 100 );
+	setLed( 5, 0x4B, 0, 0x82 ); pixels.show(); delay( 100 );
+	setLed( 6, 0xEE, 0x82, 0xEE ); pixels.show(); delay( 100 );
+	setLed( 7, 0xFE, 0xFE, 0xFE ); pixels.show(); delay( 100 );
+	setLed( 8, 0xFF, 0, 0 ); pixels.show(); delay( 100 );
+	setLed( 9, 0xFF, 0x35, 0 ); pixels.show(); delay( 100 );
+	setLed( 10, 0xFF, 0xFF, 0 ); pixels.show(); delay( 100 );
+	setLed( 11, 0, 0x80, 0 ); pixels.show(); delay( 100 );
+	setLed( 12, 0, 0, 0xFF ); pixels.show(); delay( 100 );
+	setLed( 13, 0x4B, 0, 0x82 ); pixels.show(); delay( 100 );
+	setLed( 14, 0xEE, 0x82, 0xEE ); pixels.show(); delay( 100 );
+	setLed( 15, 0xFE, 0xFE, 0xFE ); pixels.show(); delay( 100 );
+	setLed( 16, 0xFF, 0, 0 ); pixels.show(); delay( 100 );
 	delay( 500 );
-	pixels.clear();
-	pixels.show();
+	// pixels.clear(); pixels.show();
+
+
+	setBrightness( START_BRIGHT );
+	hsbToRgb();
+	setRGB( rgb[ 0 ], rgb[ 1 ], rgb[ 2 ] );
+	setLamp( lamp_on.value.bool_value );
 
 
 
@@ -95,11 +104,26 @@ void setup()
 //-----------------------------------------------------------------------------------------
 void loop()
 {
+	ESP.wdtFeed();
+
 	if( timer0.isInterrupt() ){
 		timer0.confirmInerrupt();
-#ifdef __DEV
-		ESP_DEBUG( "Free heap: %d, HomeKit clients: %d\n", ESP.getFreeHeap(), arduino_homekit_connected_clients_count() );
-#endif
+// #ifdef __DEV
+// 		ESP_DEBUG( "Free heap: %d, HomeKit clients: %d [%d]\n", ESP.getFreeHeap(), arduino_homekit_connected_clients_count(), fadeValue );
+// #endif
+		if( bright == 73 ){
+			if( fadeMode ){
+				fadeValue -= 3;
+				if( fadeValue <= 5 ){
+					setRGB( rgb[ 0 ], rgb[ 1 ], rgb[ 2 ] );
+					fadeMode = 0;
+				}
+			}else{
+				fadeValue += 3;
+				if( fadeValue >= 250 ) fadeMode = 1;
+			}
+			pixels.setBrightness( fadeValue ); pixels.show();
+		}
 	}
 
 	if( esp::flags.ap_mode ){
@@ -110,34 +134,126 @@ void loop()
 }
 
 //-----------------------------------------------------------------------------------------
-void setBrightness(const uint8_t value)
+void setRGB(const uint8_t r, const uint8_t g, const uint8_t b)
 {
-	bright = (uint8_t)map( value, 0, 100, 0, 255 );
-	pixels.setBrightness( bright );
+	for( uint8_t i = 0; i < LEDS_COUNT; i++ ){
+		setLed( i, r, g, b );
+	}
+
 	pixels.show();
 }
 
 //-----------------------------------------------------------------------------------------
-uint8_t getBrightness(void)
+void setBrightness(const uint8_t value)
 {
-	return map( bright, 0, 255, 0, 100 );
+	if( value == 37 ){
+		ESP.wdtFeed();
+		pixels.setBrightness( 0xFF );
+		setRGB( 0xFF, 0, 0 ); delay( 500 ); ESP.wdtFeed();
+		setRGB( 0, 0, 0 ); delay( 500 ); ESP.wdtFeed();
+		setRGB( 0xFF, 0, 0 ); delay( 500 ); ESP.wdtFeed();
+		setRGB( 0, 0, 0 ); delay( 500 ); ESP.wdtFeed();
+		setRGB( 0xFF, 0, 0 ); delay( 500 ); ESP.wdtFeed();
+		setRGB( 0, 0, 0 ); delay( 500 ); ESP.wdtFeed();
+		setRGB( 0xFF, 0, 0 ); delay( 500 ); ESP.wdtFeed();
+		setRGB( 0, 0, 0 ); delay( 500 ); ESP.wdtFeed();
+		setRGB( 0xFF, 0, 0 ); delay( 500 ); ESP.wdtFeed();
+		setRGB( 0, 0, 0 ); delay( 500 ); ESP.wdtFeed();
+	}else if( value == 73 ){
+		fadeValue = value;
+	}
+
+	pixels.setBrightness( map( value, 0, 100, 0, 255 ) );
+	pixels.show();
 }
+
+//-----------------------------------------------------------------------------------------
+
 
 //-----------------------------------------------------------------------------------------
 void setLamp(const uint8_t value)
 {
-	printf( "LAMP [%s]\n", ( value )?"true":"false" );
+	printf( "LAMP [%s][%d]\n", ( value )? "true" : "false", bright );
+
+	// //HUE at RGB
+	// uint8_t rgb[ 3 ];
+	// uint8_t shift = 0;
+	// if( hue > 240 ){
+	// 	shift = ( hue - 240 ) * 3;
+	// 	rgb[ 0 ] = shift;
+	// 	rgb[ 1 ] = 0;
+	// 	rgb[ 2 ] = ~shift;
+	// }else if( hue > 120 ){
+	// 	shift = ( hue - 120 ) * 3;
+	// 	rgb[ 0 ] = 0;
+	// 	rgb[ 1 ] = ~shift;
+	// 	rgb[ 2 ] = shift;
+	// }else{
+	// 	shift = ( hue ) * 3;
+	// 	rgb[ 0 ] = ~shift;
+	// 	rgb[ 1 ] = shift;
+	// 	rgb[ 2 ] = 0;
+	// }
 
 	if( value ){
-		for( uint8_t i = 0; i < LEDS_COUNT; i++ ){
-			setLed( i, 0xFF, 0x35, 0 );
-		}
+		// for( uint8_t i = 0; i < LEDS_COUNT; i++ ){
+		// 	setLed( i, rgb[ 0 ], rgb[ 1 ], rgb[ 2 ] );
+		// }
+		
+		setBrightness( bright );
 	}else{
-		pixels.clear();
+		// pixels.clear();
+		pixels.setBrightness( 0 );
 	}
-	
-	pixels.show();
+
+	hsbToRgb();
 }
 
 //-----------------------------------------------------------------------------------------
+void hsbToRgb(void)
+{
+	uint16 s = saturation * 255 / 100;
+	uint16 v = bright * 255 / MAX_BRIGHT;
+	if (s == 0) {
+		rgb[ 0 ] = rgb[ 1 ] = rgb[ 2 ] = v;
+	} else {
+		uint16 t1 = v;
+		uint16 t2 = (255 - s) * v / 255;
+		uint16 t3 = (t1 - t2) * (hue % 60) / 60;
+		if (hue == 360) hue = 0;
+		if (hue < 60) {
+			rgb[ 0 ] = t1;
+			rgb[ 2 ] = t2;
+			rgb[ 1 ] = t2 + t3;
+		}else if (hue < 120) {
+			rgb[ 1 ] = t1;
+			rgb[ 2 ] = t2;
+			rgb[ 0 ] = t1 - t3;
+		}else if (hue < 180) {
+			rgb[ 1 ] = t1;
+			rgb[ 0 ] = t2;
+			rgb[ 2 ] = t2 + t3;
+		}else if (hue < 240) {
+			rgb[ 2 ] = t1;
+			rgb[ 0 ] = t2;
+			rgb[ 1 ] = t1 - t3;
+		}else if (hue < 300) {
+			rgb[ 2 ] = t1;
+			rgb[ 1 ] = t2;
+			rgb[ 0 ] = t2 + t3;
+		}else if (hue < 360) {
+			rgb[ 0 ] = t1;
+			rgb[ 1 ] = t2;
+			rgb[ 2 ] = t1 - t3;
+		}else{
+			rgb[ 0 ] = 0;
+			rgb[ 1 ] = 0;
+			rgb[ 2 ] = 0;
+		}
+	}
+
+	setRGB( rgb[ 0 ], rgb[ 1 ], rgb[ 2 ] );
+	// return {r: Math.round(rgb.r), g: Math.round(rgb.g), b: Math.round(rgb.b)};
+}
+
 //-----------------------------------------------------------------------------------------

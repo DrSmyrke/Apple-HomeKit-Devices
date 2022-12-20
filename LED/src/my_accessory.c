@@ -10,8 +10,10 @@ void my_accessory_identify(homekit_value_t _value)
 	printf("accessory identify\n");
 }
 
-
-
+uint8_t rgb[ 3 ];
+uint16_t hue = START_HUE;
+uint8_t saturation = START_SATURATION;
+bright = START_BRIGHT;
 void lamp_on_setter(const homekit_value_t value);
 homekit_value_t lamp_on_getter(void);
 
@@ -39,13 +41,61 @@ homekit_value_t lamp_on_getter(void)
 void lamp_bright_setter(const homekit_value_t value)
 {
 	if( value.format != homekit_format_int ) return;
-	setBrightness( value.int_value );
+	bright = value.int_value;
+	setBrightness( bright );
 }
 
 //-----------------------------------------------------------------------------------------
 homekit_value_t lamp_bright_getter(void)
 {
-	return HOMEKIT_INT( getBrightness() );
+	return HOMEKIT_INT( bright );
+}
+
+//-----------------------------------------------------------------------------------------
+void lamp_hue_setter(const homekit_value_t value)
+{
+	if( value.format != homekit_format_float ) return;
+	hue = value.float_value;
+	hsbToRgb();
+
+	// //HUE at RGB
+	// uint8_t shift = 0;
+	// if( hue > 240 ){
+	// 	shift = ( hue - 240 ) * 3;
+	// 	rgb[ 0 ] = shift;
+	// 	rgb[ 1 ] = 0;
+	// 	rgb[ 2 ] = ~shift;
+	// }else if( hue > 120 ){
+	// 	shift = ( hue - 120 ) * 3;
+	// 	rgb[ 0 ] = 0;
+	// 	rgb[ 1 ] = ~shift;
+	// 	rgb[ 2 ] = shift;
+	// }else{
+	// 	shift = ( hue ) * 3;
+	// 	rgb[ 0 ] = ~shift;
+	// 	rgb[ 1 ] = shift;
+	// 	rgb[ 2 ] = 0;
+	// }
+}
+
+//-----------------------------------------------------------------------------------------
+homekit_value_t lamp_hue_getter(void)
+{
+	return HOMEKIT_FLOAT( hue );
+}
+
+//-----------------------------------------------------------------------------------------
+void lamp_sat_setter(const homekit_value_t value)
+{
+	if( value.format != homekit_format_float ) return;
+	saturation = value.float_value;
+	hsbToRgb();
+}
+
+//-----------------------------------------------------------------------------------------
+homekit_value_t lamp_sat_getter(void)
+{
+	return HOMEKIT_FLOAT( saturation );
 }
 
 
@@ -63,8 +113,9 @@ homekit_accessory_t *accessories[] = {
 		HOMEKIT_SERVICE(LIGHTBULB, .primary=true, .characteristics=(homekit_characteristic_t*[]){
 			&lamp_on,
 			HOMEKIT_CHARACTERISTIC( NAME, DEVICE_NAME ),
-			HOMEKIT_CHARACTERISTIC( BRIGHTNESS, 100, .getter=lamp_bright_getter, .setter=lamp_bright_setter ),
-			// HOMEKIT_CHARACTERISTIC( HUE, 100, .getter=light_bri_get, .setter=led_bri_set ),
+			HOMEKIT_CHARACTERISTIC( BRIGHTNESS, START_BRIGHT, .getter=lamp_bright_getter, .setter=lamp_bright_setter ),
+			HOMEKIT_CHARACTERISTIC( HUE, START_HUE, .getter=lamp_hue_getter, .setter=lamp_hue_setter ),
+			HOMEKIT_CHARACTERISTIC( SATURATION, START_SATURATION, .getter=lamp_sat_getter, .setter=lamp_sat_setter ),
 			NULL
 		}),
 		NULL
