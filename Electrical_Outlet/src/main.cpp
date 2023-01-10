@@ -5,7 +5,6 @@
 #include <homekit/characteristics.h>
 #include <DNS_Server.h>
 #include <esp_functions.h>
-#include <functions.h>
 #include <timer.h>
 
 //----------- DEFINES ----------------------------------------------------------------------
