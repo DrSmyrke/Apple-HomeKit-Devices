@@ -49,9 +49,9 @@ void setup()
 {
 	ESP.wdtEnable( 1000 );
 
-// #ifdef __DEV
+#ifdef __DEV
 	Serial.begin( 115200 );
-// #endif
+#endif
 
 	pixels.begin();
 	pixels.clear();
@@ -92,13 +92,21 @@ void setup()
 		dnsServer.setErrorReplyCode( DNSReplyCode::NoError );
 		dnsServer.addRecord( "*", WiFi.softAPIP() );
 		dnsServer.start( DNS_PORT );
-
-		esp::pageBuff = pageBuff;
-		esp::addWebServerPages( &webServer, true, true, true );
-		webServer.begin();
 	}else{
 		arduino_homekit_setup( &config );
 	}
+
+	esp::pageBuff = pageBuff;
+	esp::addWebServerPages( &webServer, true, true, true );
+	webServer.on( "/storageReset", [ webServer ](void){
+		homekit_storage_reset();
+		ESP.reset();
+		webServer.send ( 200, "text/html", "OK" );
+	} );
+	webServer.on( "/", indexPageHeadler );
+	webServer.begin();
+
+	ESP_DEBUG( "INIT OK\n" );
 }
 
 //-----------------------------------------------------------------------------------------
@@ -131,6 +139,30 @@ void loop()
 	}else{
 		arduino_homekit_loop();
 	}
+
+	webServer.handleClient();
+}
+
+//-----------------------------------------------------------------------------------------
+void indexPageHeadler(void)
+{
+	//-------------------------------------------------------------
+	if( webServer.hasArg( "onoff" ) ){
+		uint8_t value = ( webServer.arg( "onoff" ) == "true" ) ? 1 : 0;
+		setLamp( value );
+		lamp_on.value = HOMEKIT_BOOL( value );
+		homekit_characteristic_notify( &lamp_on, lamp_on.value );
+		webServer.send ( 200, "text/html", "{'result': 'ok'}" );
+	}else if( webServer.hasArg( "hue" ) && webServer.hasArg( "sat" ) && webServer.hasArg( "bri" ) ){
+		hue = webServer.arg( "hue" ).toInt();
+		saturation = webServer.arg( "sat" ).toInt();
+		bright = webServer.arg( "bri" ).toInt();
+		setBrightness( bright );
+		hsbToRgb();
+		webServer.send ( 200, "text/html", "{'result': 'ok'}" );
+	}
+	//-------------------------------------------------------------
+	esp::webSendFile( &webServer, "/index.html", "text/html" );
 }
 
 //-----------------------------------------------------------------------------------------

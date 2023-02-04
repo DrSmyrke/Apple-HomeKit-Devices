@@ -3,7 +3,7 @@
 
 
 //----------- DEFINES --------------------------------------------------------------------
-#define DEVICE_NAME							"RGB LED Panel"
+#define DEVICE_NAME							"RGB_LED_Panel"
 #if defined(ARDUINO_ARCH_ESP8266)
 	#define MODEL_NAME						"ESP8266"
 #elif defined(ARDUINO_ARCH_ESP32)
