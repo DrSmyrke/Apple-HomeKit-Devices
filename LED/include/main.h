@@ -30,6 +30,7 @@ extern char pageBuff[ WEB_PAGE_BUFF_SIZE ];
 
 //----------- FUNCTIONS---------------------------------------------------------------------
 void indexPageHeadler(void);
+void getPageHeadler(void);
 
 
 

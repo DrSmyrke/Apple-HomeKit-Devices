@@ -104,6 +104,7 @@ void setup()
 		webServer.send ( 200, "text/html", "OK" );
 	} );
 	webServer.on( "/", indexPageHeadler );
+	webServer.on( "/get", getPageHeadler );
 	webServer.begin();
 
 	ESP_DEBUG( "INIT OK\n" );
@@ -152,17 +153,32 @@ void indexPageHeadler(void)
 		setLamp( value );
 		lamp_on.value = HOMEKIT_BOOL( value );
 		homekit_characteristic_notify( &lamp_on, lamp_on.value );
-		webServer.send ( 200, "text/html", "{'result': 'ok'}" );
+		webServer.send ( 200, "application/json", "{'result': 'ok'}" );
 	}else if( webServer.hasArg( "hue" ) && webServer.hasArg( "sat" ) && webServer.hasArg( "bri" ) ){
 		hue = webServer.arg( "hue" ).toInt();
 		saturation = webServer.arg( "sat" ).toInt();
 		bright = webServer.arg( "bri" ).toInt();
 		setBrightness( bright );
 		hsbToRgb();
-		webServer.send ( 200, "text/html", "{'result': 'ok'}" );
+		webServer.send ( 200, "application/json", "{'result': 'ok'}" );
 	}
 	//-------------------------------------------------------------
 	esp::webSendFile( &webServer, "/index.html", "text/html" );
+}
+
+//-----------------------------------------------------------------------------------------
+void getPageHeadler(void)
+{
+	strcpy( pageBuff, "{\"on\": " );
+	strcat( pageBuff, itoa( ( ( lamp_on.value.bool_value ) ? 1 : 0 ), esp::tmpVal, 10 ) );
+	strcat( pageBuff, ",\"hue\":" );
+	strcat( pageBuff, itoa( hue, esp::tmpVal, 10 ) );
+	strcat( pageBuff, ",\"sat\":" );
+	strcat( pageBuff, itoa( saturation, esp::tmpVal, 10 ) );
+	strcat( pageBuff, ",\"bri\":" );
+	strcat( pageBuff, itoa( bright, esp::tmpVal, 10 ) );
+	strcat( pageBuff, "}" );
+	webServer.send ( 200, "application/json", pageBuff );
 }
 
 //-----------------------------------------------------------------------------------------

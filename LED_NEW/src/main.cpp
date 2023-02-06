@@ -99,6 +99,7 @@ void setup()
 		esp::addWebServerPages( &webServer, true, true, true );
 		webServer.begin();
 	}else{
+		/*
 		homeKit.setPassword( "123-45-678" );
 		
 		auto assessory = homeKit.newAccessory( homekit_accessory_category_lightbulb, 2 );
@@ -143,6 +144,7 @@ void setup()
 		homekit_characteristic_notify( &brightness, brightness.value );
 		homekit_characteristic_notify( &hue, saturation.value );
 		homekit_characteristic_notify( &saturation, saturation.value );
+		*/
 	}
 }
 
@@ -186,7 +188,7 @@ void loop()
 	if( esp::flags.ap_mode ){
 		dnsServer.processNextRequest();
 	}else{
-		arduino_homekit_loop();
+		// arduino_homekit_loop();
 	}
 
 	webServer.handleClient();
