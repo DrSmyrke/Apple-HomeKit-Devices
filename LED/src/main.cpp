@@ -13,8 +13,9 @@
 Adafruit_NeoPixel pixels( LEDS_COUNT, D5, NEO_GRB + NEO_KHZ800 );
 uint8_t fadeValue = 0;
 uint8_t fadeMode = 1;
+uint8_t timer0InterruptFlag = 0;
 
-Timer timer0( 0, 25 );
+Timer timer0( 0, 25, timer0Interrupt );
 DNS_Server dnsServer;
 // access your homekit characteristics defined in my_accessory.c
 extern "C" homekit_server_config_t config;
@@ -47,7 +48,7 @@ void setLed(const uint8_t ledNum, uint8_t r, uint8_t g, uint8_t b)
 //----------- FUNCTIONS--------------------------------------------------------------------
 void setup()
 {
-	ESP.wdtEnable( 1000 );
+	ESP.wdtEnable( 10000 );
 
 #ifdef __DEV
 	Serial.begin( 115200 );
@@ -76,6 +77,22 @@ void setup()
 	delay( 500 );
 	// pixels.clear(); pixels.show();
 
+	uint32_t result;
+	ESP.rtcUserMemoryRead( 0, &result, 1 );
+	esp::tmpVal[ 0 ] = result >> 24;
+	esp::tmpVal[ 1 ] = result >> 16;
+	esp::tmpVal[ 2 ] = result >> 8;
+	esp::tmpVal[ 3 ] = result;
+	ESP.rtcUserMemoryRead( 1, &result, 1 );
+	esp::tmpVal[ 4 ] = result >> 24;
+	esp::tmpVal[ 5 ] = result >> 16;
+	lamp_on.value			= HOMEKIT_BOOL( esp::tmpVal[ 0 ] );
+	bright					= esp::tmpVal[ 1 ];
+	saturation				= esp::tmpVal[ 2 ];
+	hue						= ( esp::tmpVal[ 4 ] << 8 ) | ( esp::tmpVal[ 5 ] );
+	if( hue >= 360 ) hue = 0;
+	if( bright >= 100 ) bright = 100;
+	if( saturation >= 100 ) saturation = 100;
 
 	setBrightness( START_BRIGHT );
 	hsbToRgb();
@@ -115,8 +132,8 @@ void loop()
 {
 	ESP.wdtFeed();
 
-	if( timer0.isInterrupt() ){
-		timer0.confirmInerrupt();
+	if( timer0InterruptFlag ){
+		timer0InterruptFlag = 0;
 // #ifdef __DEV
 // 		ESP_DEBUG( "Free heap: %d, HomeKit clients: %d [%d]\n", ESP.getFreeHeap(), arduino_homekit_connected_clients_count(), fadeValue );
 // #endif
@@ -149,8 +166,9 @@ void indexPageHeadler(void)
 {
 	//-------------------------------------------------------------
 	if( webServer.hasArg( "onoff" ) ){
-		uint8_t value = ( webServer.arg( "onoff" ) == "true" ) ? 1 : 0;
+		uint8_t value = webServer.arg( "onoff" ).toInt();
 		setLamp( value );
+		saveParams();
 		lamp_on.value = HOMEKIT_BOOL( value );
 		homekit_characteristic_notify( &lamp_on, lamp_on.value );
 		webServer.send ( 200, "application/json", "{'result': 'ok'}" );
@@ -160,6 +178,7 @@ void indexPageHeadler(void)
 		bright = webServer.arg( "bri" ).toInt();
 		setBrightness( bright );
 		hsbToRgb();
+		saveParams();
 		webServer.send ( 200, "application/json", "{'result': 'ok'}" );
 	}
 	//-------------------------------------------------------------
@@ -302,6 +321,22 @@ void hsbToRgb(void)
 
 	setRGB( rgb[ 0 ], rgb[ 1 ], rgb[ 2 ] );
 	// return {r: Math.round(rgb.r), g: Math.round(rgb.g), b: Math.round(rgb.b)};
+}
+
+//-----------------------------------------------------------------------------------------
+void timer0Interrupt(void*)
+{
+	timer0InterruptFlag = 1;
+}
+
+//-----------------------------------------------------------------------------------------
+void saveParams(void)
+{
+	uint8_t onoff = ( lamp_on.value.bool_value ) ? 1 : 0;
+	uint32_t storeValue = ( ( onoff << 24 ) | ( bright << 16 ) | ( saturation << 8 ) | ( 0 ) );
+	uint32_t storeValue2 = hue;
+    ESP.rtcUserMemoryWrite( 0, &storeValue, 1 );
+    ESP.rtcUserMemoryWrite( 1, &storeValue2, 1 );
 }
 
 //-----------------------------------------------------------------------------------------

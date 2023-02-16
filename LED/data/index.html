@@ -20,15 +20,15 @@
 		<hr>
 		<div class="content">
 			<form method="POST" target="/" name="onoff">
-				<input type="hidden" name="onoff" value="0">
-			</form>
-			<div class="legend">LED On/Off</div>
-			<div class="block">
-				<div class="string">
-					<text>On/Off:</text>
-					<input type="checkbox" name="onoff" onChange="dev_action( this.checked );">
+				<input type="hidden" name="onoff">
+				<div class="legend">LED On/Off</div>
+				<div class="block">
+					<div class="string">
+						<text>On/Off:</text>
+						<input type="checkbox" name="show" onChange="dev_action( this.checked );">
+					</div>
 				</div>
-			</div>
+			</form>
 			<form method="POST" target="/" name="hsb">
 				<div class="legend">LED Configure</div>
 				<div class="block">
@@ -60,7 +60,8 @@ window.onload = function(){
 		if( formRequest.readyState == 4 && formRequest.status == 200 ){
 			let dataObject = JSON.parse( ( formRequest.responseText != '' ) ? formRequest.responseText : '{}' );
 			if( dataObject.hasOwnProperty( "on" ) ){
-				document.forms.onoff.onoff.checked = ( dataObject.on ) ? true : false;
+				document.forms.onoff.show.checked = ( dataObject.on ) ? true : false;
+				document.forms.onoff.onoff.value = ( dataObject.on ) ? 1 : 0;
 			}
 			if( dataObject.hasOwnProperty( "hue" ) ){
 				document.forms.hsb.hue.value = dataObject.hue;
@@ -104,7 +105,7 @@ function dev_action( value )
 {
 	let form = document.forms.onoff;
 
-	form.onoff.value = value;
+	form.onoff.value = ( value == true ) ? 1 : 0;
 	
 	let formData = new FormData( form );
 	formRequest.open( "POST", form.action, false );
