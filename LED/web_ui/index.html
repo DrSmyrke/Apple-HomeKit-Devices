@@ -1,0 +1,28 @@
+			<form method="POST" target="/" name="onoff">
+				<input type="hidden" name="onoff">
+				<div class="legend">LED On/Off</div>
+				<div class="block">
+					<div class="string">
+						<text>On/Off:</text>
+						<input type="checkbox" name="show" onChange="dev_action( this.checked );">
+					</div>
+				</div>
+			</form>
+			<form method="POST" target="/" name="hsb">
+				<div class="legend">LED Configure</div>
+				<div class="block">
+					<div class="string">
+						<text>HUE:</text>
+						<input type="range" name="hue" min="0" max="359" class="sliderHUE" onInput="updateHSB();">
+					</div>
+					<div class="string">
+						<text>Saturation:</text>
+						<input type="range" name="sat" min="0" max="100" class="sliderSaturation" onInput="updateHSB();">
+					</div>
+					<div class="string">
+						<text>Brightness:</text>
+						<input type="range" name="bri" min="0" max="100" class="sliderBrightness" onInput="updateHSB();">
+					</div>
+				</div>
+			</form>
+

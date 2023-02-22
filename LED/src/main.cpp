@@ -6,6 +6,12 @@
 #include <esp_functions.h>
 #include <Adafruit_NeoPixel.h>
 
+#if defined(ARDUINO_ARCH_ESP8266)
+	#include <LittleFS.h>
+#elif defined(ARDUINO_ARCH_ESP32)
+	#include <SPIFFS.h>
+#endif
+
 //----------- DEFINES ----------------------------------------------------------------------
 
 
@@ -37,6 +43,10 @@ extern "C" void hsbToRgb(void);
 	WebServer webServer;
 #endif
 char pageBuff[ WEB_PAGE_BUFF_SIZE ];
+
+uint8_t msecondCounter = 0;
+uint8_t secondCounter = 0;
+bool m_saveSettingsFlag = false;
 
 //----------- FUNCTIONS--------------------------------------------------------------------
 void setLed(const uint8_t ledNum, uint8_t r, uint8_t g, uint8_t b)
@@ -77,26 +87,30 @@ void setup()
 	delay( 500 );
 	// pixels.clear(); pixels.show();
 
-	uint32_t result;
-	ESP.rtcUserMemoryRead( 0, &result, 1 );
-	esp::tmpVal[ 0 ] = result >> 24;
-	esp::tmpVal[ 1 ] = result >> 16;
-	esp::tmpVal[ 2 ] = result >> 8;
-	esp::tmpVal[ 3 ] = result;
-	ESP.rtcUserMemoryRead( 1, &result, 1 );
-	esp::tmpVal[ 4 ] = result >> 24;
-	esp::tmpVal[ 5 ] = result >> 16;
-	lamp_on.value			= HOMEKIT_BOOL( esp::tmpVal[ 0 ] );
-	bright					= esp::tmpVal[ 1 ];
-	saturation				= esp::tmpVal[ 2 ];
-	hue						= ( esp::tmpVal[ 4 ] << 8 ) | ( esp::tmpVal[ 5 ] );
-	if( hue >= 360 ) hue = 0;
-	if( bright >= 100 ) bright = 100;
-	if( saturation >= 100 ) saturation = 100;
+	// uint32_t result;
+	// ESP.rtcUserMemoryRead( 0, &result, 1 );
+	// esp::tmpVal[ 0 ] = result >> 24;
+	// esp::tmpVal[ 1 ] = result >> 16;
+	// esp::tmpVal[ 2 ] = result >> 8;
+	// esp::tmpVal[ 3 ] = result;
+	// ESP.rtcUserMemoryRead( 1, &result, 1 );
+	// esp::tmpVal[ 4 ] = result >> 24;
+	// esp::tmpVal[ 5 ] = result >> 16;
+	// lamp_on.value			= HOMEKIT_BOOL( esp::tmpVal[ 0 ] );
+	// bright					= esp::tmpVal[ 1 ];
+	// saturation				= esp::tmpVal[ 2 ];
+	// hue						= ( esp::tmpVal[ 4 ] << 8 ) | ( esp::tmpVal[ 5 ] );
+	// if( hue >= 360 ) hue = 0;
+	// if( bright >= 100 ) bright = 100;
+	// if( saturation >= 100 ) saturation = 100;
+	loadSettings();
 
-	setBrightness( START_BRIGHT );
+	bright = 100;
+	setBrightness( 100 );
 	hsbToRgb();
+	rgb[ 0 ] = 255; rgb[ 1 ] = 255;  rgb[ 2 ] = 255;
 	setRGB( rgb[ 0 ], rgb[ 1 ], rgb[ 2 ] );
+	lamp_on.value = HOMEKIT_BOOL( true );
 	setLamp( lamp_on.value.bool_value );
 
 
@@ -116,9 +130,11 @@ void setup()
 	esp::pageBuff = pageBuff;
 	esp::addWebServerPages( &webServer, true, true, true );
 	webServer.on( "/storageReset", [ webServer ](void){
-		homekit_storage_reset();
-		ESP.reset();
-		webServer.send ( 200, "text/html", "OK" );
+		if( esp::checkWebAuth( &webServer, SYSTEM_LOGIN, SYSTEM_PASSWORD, ESP_AUTH_REALM, "access denied" ) ){
+			homekit_storage_reset();
+			webServer.send ( 200, "text/html", "OK" );
+			ESP.reset();
+		}
 	} );
 	webServer.on( "/", indexPageHeadler );
 	webServer.on( "/get", getPageHeadler );
@@ -150,6 +166,17 @@ void loop()
 			}
 			pixels.setBrightness( fadeValue ); pixels.show();
 		}
+
+		if( ++msecondCounter >= 40 ){
+			msecondCounter = 0;
+			if( ++secondCounter >= 15 ){
+				secondCounter = 0;
+				if( m_saveSettingsFlag ){
+					m_saveSettingsFlag = false;
+					saveSettings();
+				}
+			}
+		}
 	}
 
 	if( esp::flags.ap_mode ){
@@ -168,7 +195,7 @@ void indexPageHeadler(void)
 	if( webServer.hasArg( "onoff" ) ){
 		uint8_t value = webServer.arg( "onoff" ).toInt();
 		setLamp( value );
-		saveParams();
+		m_saveSettingsFlag = true;
 		lamp_on.value = HOMEKIT_BOOL( value );
 		homekit_characteristic_notify( &lamp_on, lamp_on.value );
 		webServer.send ( 200, "application/json", "{'result': 'ok'}" );
@@ -178,10 +205,12 @@ void indexPageHeadler(void)
 		bright = webServer.arg( "bri" ).toInt();
 		setBrightness( bright );
 		hsbToRgb();
-		saveParams();
+		m_saveSettingsFlag = true;
 		webServer.send ( 200, "application/json", "{'result': 'ok'}" );
 	}
 	//-------------------------------------------------------------
+	// webServer.sendHeader( "Content-Encoding", "gzip" );
+	// esp::webSendFile( &webServer, "/index.html.gz", "text/html" );
 	esp::webSendFile( &webServer, "/index.html", "text/html" );
 }
 
@@ -330,13 +359,42 @@ void timer0Interrupt(void*)
 }
 
 //-----------------------------------------------------------------------------------------
-void saveParams(void)
+// void saveParams(void)
+// {
+// 	uint8_t onoff = ( lamp_on.value.bool_value ) ? 1 : 0;
+// 	uint32_t storeValue = ( ( onoff << 24 ) | ( bright << 16 ) | ( saturation << 8 ) | ( 0 ) );
+// 	uint32_t storeValue2 = hue;
+//     ESP.rtcUserMemoryWrite( 0, &storeValue, 1 );
+//     ESP.rtcUserMemoryWrite( 1, &storeValue2, 1 );
+// }
+void saveSettings(void)
 {
-	uint8_t onoff = ( lamp_on.value.bool_value ) ? 1 : 0;
-	uint32_t storeValue = ( ( onoff << 24 ) | ( bright << 16 ) | ( saturation << 8 ) | ( 0 ) );
-	uint32_t storeValue2 = hue;
-    ESP.rtcUserMemoryWrite( 0, &storeValue, 1 );
-    ESP.rtcUserMemoryWrite( 1, &storeValue2, 1 );
+	ESP_DEBUG( "Save settings\n" );
+
+	uint8_t data[ 5 ];
+	data[ 0 ]								= ( lamp_on.value.bool_value ) ? 1 : 0;
+	data[ 1 ]								= bright;
+	data[ 2 ]								= saturation;
+	data[ 3 ]								= (uint8_t)hue >> 8;
+	data[ 4 ]								= (uint8_t)hue;
+
+	esp::saveSettings( data, sizeof( data ) );
+}
+
+//-----------------------------------------------------------------------------------------
+void loadSettings(void)
+{
+	uint8_t data[ 5 ];
+	if( esp::loadSettings( data, sizeof( data ) ) == sizeof( data ) ){
+		lamp_on.value.bool_value			= ( data[ 0 ] ) ? true : false;
+		bright								= data[ 1 ];
+		saturation							= data[ 2 ];
+		hue									= ( data[ 3 ] << 8 ) | ( data[ 4 ] );
+
+		if( hue > 359 ) hue = 0;
+		if( bright > 100 ) bright = 100;
+		if( saturation > 100 ) saturation = 1;
+	}
 }
 
 //-----------------------------------------------------------------------------------------

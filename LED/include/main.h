@@ -16,6 +16,7 @@
 #define MAX_BRIGHT							100
 #define START_HUE							100
 #define START_SATURATION					50
+#define CONFIG_FILE							"settings.conf"
 
 //----------- INCLUDES --------------------------------------------------------------------
 #include <homekit/types.h>
@@ -32,7 +33,7 @@ extern char pageBuff[ WEB_PAGE_BUFF_SIZE ];
 void indexPageHeadler(void);
 void getPageHeadler(void);
 void timer0Interrupt(void*);
-void saveParams(void);
-
+void saveSettings(void);
+void loadSettings(void);
 
 #endif //_MAIN_H_

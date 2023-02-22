@@ -176,7 +176,6 @@ void loop()
 			msecondCounter = 0;
 			if( ++secondCounter >= 15 ){
 				secondCounter = 0;
-				//TODO: save settings
 				if( m_saveSettingsFlag ){
 					m_saveSettingsFlag = false;
 					saveSettings();

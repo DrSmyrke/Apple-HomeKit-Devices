@@ -1,0 +1,93 @@
+:root{
+	--slider-border: 2px solid black;
+	--slider-track-height: 15px;
+}
+
+input[type=range]{
+	-webkit-appearance: none;
+	height: 15px;
+	width: calc( 100% - 115px );
+	padding: 0px;
+}
+
+.sliderNumber{
+	width: 48px;
+	background: none;
+	color: black;
+	border: 1px solid silver;
+	border-width: 0px 0px 1px 0px;
+}
+
+input[type=range]::-moz-range-track{ height: var(--slider-track-height); }
+input[type=range]::-ms-track{ height: var(--slider-track-height); }
+input[type=range]::-webkit-slider-runnable-track{ height: var(--slider-track-height); }
+
+input[type=range]::-moz-range-thumb{
+	background-color: rgba( 100, 100, 100, 0.4 );
+	border: var(--slider-border);
+	border-radius: 0px;
+	width: 7px;
+}
+
+/* Специальные правила для браузеров на движках WebKit/Blink */
+input[type=range]::-webkit-slider-thumb{
+	-webkit-appearance: none;
+	background-color: rgba( 100, 100, 100, 0.4 );
+	border: var(--slider-border);
+	border-radius: 0px;
+	width: 7px;
+	height: 16px;
+}
+
+
+.sliderBox{
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.sliderBox .contentBox{
+	width: calc( 100% - 64px );
+}
+
+.sliderBox .previewBox{
+	width: 48px;
+	height: 48px;
+	background-color: rgba( 100, 100, 100 );
+}
+
+
+.sliderHUE::-moz-range-track{
+	background: linear-gradient( to right, #DB2C2C, #DADB2C, #43DB2C, #2C50DB, #CD2CDB, #DB322C );
+}
+.sliderHUE::-ms-track{
+	background: linear-gradient( to right, #DB2C2C, #DADB2C, #43DB2C, #2C50DB, #CD2CDB, #DB322C );
+}
+.sliderHUE::-webkit-slider-runnable-track{
+	background: linear-gradient( to right, #DB2C2C, #DADB2C, #43DB2C, #2C50DB, #CD2CDB, #DB322C );
+}
+
+
+
+.sliderSaturation::-moz-range-track{
+	background: linear-gradient( to right, #FFFFFF, #000000 );
+}
+.sliderSaturation::-ms-track{
+	background: linear-gradient( to right, #FFFFFF, #000000 );
+}
+.sliderSaturation::-webkit-slider-runnable-track{
+	background: linear-gradient( to right, #FFFFFF, #000000 );
+}
+
+
+
+
+.sliderBrightness::-moz-range-track{
+	background: linear-gradient( to right, #000000, #FFFFFF );
+}
+.sliderBrightness::-ms-track{
+	background: linear-gradient( to right, #000000, #FFFFFF );
+}
+.sliderBrightness::-webkit-slider-runnable-track{
+	background: linear-gradient( to right, #000000, #FFFFFF );
+}
